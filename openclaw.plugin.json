@@ -1,0 +1,27 @@
+{
+  "id": "hulunote-assistant",
+  "name": "Hulunote Assistant",
+  "description": "Hulunote note assistant tools for browsing databases, reading and writing notes, and managing outlines.",
+  "version": "0.1.0",
+  "skills": [
+    "./skills"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "serverUrl": {
+        "type": "string",
+        "description": "Hulunote server URL, e.g. http://localhost:6689"
+      },
+      "tokenEnv": {
+        "type": "string",
+        "description": "Environment variable name that contains the Hulunote authentication token."
+      },
+      "defaultDatabaseId": {
+        "type": "string",
+        "description": "Default database ID to use when the user does not specify one."
+      }
+    }
+  }
+}
