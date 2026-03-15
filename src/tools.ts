@@ -90,6 +90,135 @@ const DeleteOutlineNodeParamsSchema = Type.Object(
   { additionalProperties: false },
 )
 
+const CreateDatabaseParamsSchema = Type.Object(
+  {
+    name: Type.String({ description: "Name of the new database." }),
+    description: Type.Optional(Type.String({ description: "Optional description for the database." })),
+  },
+  { additionalProperties: false },
+)
+
+const DeleteDatabaseParamsSchema = Type.Object(
+  {
+    databaseId: Type.String({ description: "The database ID to delete." }),
+  },
+  { additionalProperties: false },
+)
+
+const UpdateDatabaseParamsSchema = Type.Object(
+  {
+    databaseId: Type.String({ description: "The database ID to update." }),
+    name: Type.Optional(Type.String({ description: "New name for the database." })),
+    isPublic: Type.Optional(Type.Boolean({ description: "Set the database as public or private." })),
+    isDefault: Type.Optional(Type.Boolean({ description: "Set the database as the default." })),
+  },
+  { additionalProperties: false },
+)
+
+const DeleteNoteParamsSchema = Type.Object(
+  {
+    noteId: Type.String({ description: "The note ID to delete." }),
+  },
+  { additionalProperties: false },
+)
+
+const UpdateNoteTitleParamsSchema = Type.Object(
+  {
+    noteId: Type.String({ description: "The note ID to rename." }),
+    title: Type.String({ description: "The new title for the note." }),
+  },
+  { additionalProperties: false },
+)
+
+const ToggleShortcutParamsSchema = Type.Object(
+  {
+    noteId: Type.String({ description: "The note ID to toggle shortcut status." }),
+    isShortcut: Type.Boolean({ description: "Set to true to mark as shortcut, false to remove." }),
+  },
+  { additionalProperties: false },
+)
+
+const ListShortcutsParamsSchema = Type.Object(
+  {
+    databaseId: Type.Optional(
+      Type.String({
+        description:
+          "Database ID to list shortcuts from. If omitted, use the configured defaultDatabaseId.",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+)
+
+const MoveOutlineNodeParamsSchema = Type.Object(
+  {
+    noteId: Type.String({ description: "The note ID the outline node belongs to." }),
+    navId: Type.String({ description: "The nav ID of the outline node to move." }),
+    newParentId: Type.String({
+      description: "The new parent nav ID. Use the note's root-nav-id for top-level.",
+    }),
+    newOrder: Type.Number({ description: "The new ordering value among siblings." }),
+  },
+  { additionalProperties: false },
+)
+
+const ImportNotesParamsSchema = Type.Object(
+  {
+    databaseId: Type.Optional(
+      Type.String({
+        description:
+          "Database ID to import into. If omitted, use the configured defaultDatabaseId.",
+      }),
+    ),
+    jsonContent: Type.String({
+      description:
+        'JSON string with import data. Format: {"note":{"hulunote-notes/title":"Title"},"navs":[{"content":"text","parid":"root-nav-id","same-deep-order":1}]}',
+    }),
+    filename: Type.Optional(
+      Type.String({ description: 'Filename for the import. Defaults to "import.json".' }),
+    ),
+  },
+  { additionalProperties: false },
+)
+
+const SyncNavsParamsSchema = Type.Object(
+  {
+    databaseId: Type.Optional(
+      Type.String({
+        description:
+          "Database ID to sync navs from. If omitted, use the configured defaultDatabaseId.",
+      }),
+    ),
+    backendTs: Type.Optional(
+      Type.Number({
+        description:
+          "Timestamp in milliseconds. Only return navs updated after this time. Omit for all navs.",
+      }),
+    ),
+    page: Type.Optional(Type.Number({ description: "Page number for pagination (1-based)." })),
+    size: Type.Optional(Type.Number({ description: "Number of navs per page (max 5000)." })),
+  },
+  { additionalProperties: false },
+)
+
+const GetAllNavsParamsSchema = Type.Object(
+  {
+    databaseId: Type.Optional(
+      Type.String({
+        description:
+          "Database ID to get navs from. If omitted, use the configured defaultDatabaseId.",
+      }),
+    ),
+    backendTs: Type.Optional(
+      Type.Number({
+        description:
+          "Timestamp in milliseconds. Only return navs updated after this time. Omit for all navs.",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+)
+
 type ListDatabasesParams = Static<typeof ListDatabasesParamsSchema>
 type ListNotesParams = Static<typeof ListNotesParamsSchema>
 type ReadNoteParams = Static<typeof ReadNoteParamsSchema>
@@ -98,6 +227,17 @@ type CreateNoteParams = Static<typeof CreateNoteParamsSchema>
 type AddOutlineNodeParams = Static<typeof AddOutlineNodeParamsSchema>
 type UpdateOutlineNodeParams = Static<typeof UpdateOutlineNodeParamsSchema>
 type DeleteOutlineNodeParams = Static<typeof DeleteOutlineNodeParamsSchema>
+type CreateDatabaseParams = Static<typeof CreateDatabaseParamsSchema>
+type DeleteDatabaseParams = Static<typeof DeleteDatabaseParamsSchema>
+type UpdateDatabaseParams = Static<typeof UpdateDatabaseParamsSchema>
+type DeleteNoteParams = Static<typeof DeleteNoteParamsSchema>
+type UpdateNoteTitleParams = Static<typeof UpdateNoteTitleParamsSchema>
+type ToggleShortcutParams = Static<typeof ToggleShortcutParamsSchema>
+type ListShortcutsParams = Static<typeof ListShortcutsParamsSchema>
+type MoveOutlineNodeParams = Static<typeof MoveOutlineNodeParamsSchema>
+type ImportNotesParams = Static<typeof ImportNotesParamsSchema>
+type SyncNavsParams = Static<typeof SyncNavsParamsSchema>
+type GetAllNavsParams = Static<typeof GetAllNavsParamsSchema>
 
 // ── Formatters ─────────────────────────────────────────────────────────
 
@@ -358,6 +498,225 @@ export const registerHulunoteTools = (api: OpenClawPluginApi, pluginConfig: Plug
       const client = createClient(pluginConfig)
       await client.deleteNav(params.noteId, params.navId)
       return textResult(`Outline node deleted. Nav ID: ${params.navId}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_create_database",
+    label: "Hulunote Create Database",
+    description: "Create a new database (notebook) for the authenticated user.",
+    parameters: CreateDatabaseParamsSchema,
+    async execute(_id: string, params: CreateDatabaseParams) {
+      const client = createClient(pluginConfig)
+      const db = await client.createDatabase(params.name, params.description)
+      return textResult(
+        [
+          `Database created: ${db["hulunote-databases/name"]}`,
+          `ID: ${db["hulunote-databases/id"]}`,
+          db["hulunote-databases/description"]
+            ? `Description: ${db["hulunote-databases/description"]}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      )
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_delete_database",
+    label: "Hulunote Delete Database",
+    description:
+      "Delete a database (soft delete). This also soft-deletes all notes and outline nodes in the database.",
+    parameters: DeleteDatabaseParamsSchema,
+    async execute(_id: string, params: DeleteDatabaseParams) {
+      const client = createClient(pluginConfig)
+      await client.deleteDatabase(params.databaseId)
+      return textResult(`Database deleted. ID: ${params.databaseId}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_update_database",
+    label: "Hulunote Update Database",
+    description:
+      "Update database properties: rename, set as public/private, or set as the default database.",
+    parameters: UpdateDatabaseParamsSchema,
+    async execute(_id: string, params: UpdateDatabaseParams) {
+      const client = createClient(pluginConfig)
+      await client.updateDatabase(params.databaseId, {
+        name: params.name,
+        isPublic: params.isPublic,
+        isDefault: params.isDefault,
+      })
+      const changes: string[] = []
+      if (params.name != null) changes.push(`name → ${params.name}`)
+      if (params.isPublic != null) changes.push(`public → ${params.isPublic}`)
+      if (params.isDefault != null) changes.push(`default → ${params.isDefault}`)
+      return textResult(`Database updated (${params.databaseId}): ${changes.join(", ")}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_delete_note",
+    label: "Hulunote Delete Note",
+    description: "Delete a note (soft delete). The note can potentially be recovered later.",
+    parameters: DeleteNoteParamsSchema,
+    async execute(_id: string, params: DeleteNoteParams) {
+      const client = createClient(pluginConfig)
+      await client.deleteNote(params.noteId)
+      return textResult(`Note deleted. ID: ${params.noteId}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_update_note_title",
+    label: "Hulunote Update Note Title",
+    description: "Rename a note by updating its title.",
+    parameters: UpdateNoteTitleParamsSchema,
+    async execute(_id: string, params: UpdateNoteTitleParams) {
+      const client = createClient(pluginConfig)
+      await client.updateNoteTitle(params.noteId, params.title)
+      return textResult(`Note renamed. ID: ${params.noteId}, New title: ${params.title}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_toggle_shortcut",
+    label: "Hulunote Toggle Shortcut",
+    description: "Toggle a note's shortcut (favorite) status. Shortcut notes appear in a quick-access list.",
+    parameters: ToggleShortcutParamsSchema,
+    async execute(_id: string, params: ToggleShortcutParams) {
+      const client = createClient(pluginConfig)
+      await client.toggleShortcut(params.noteId, params.isShortcut)
+      const action = params.isShortcut ? "added to" : "removed from"
+      return textResult(`Note ${action} shortcuts. ID: ${params.noteId}`)
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_list_shortcuts",
+    label: "Hulunote List Shortcuts",
+    description:
+      "List all shortcut (favorite) notes in a database. These are notes marked for quick access.",
+    parameters: ListShortcutsParamsSchema,
+    async execute(_id: string, params: ListShortcutsParams) {
+      const client = createClient(pluginConfig)
+      const databaseId = resolveDatabaseId(pluginConfig, params.databaseId)
+      const notes = await client.getShortcuts(databaseId)
+      if (notes.length === 0) return textResult("No shortcut notes found in this database.")
+      const lines = [`Shortcut notes (${notes.length}):`, ""]
+      for (const note of notes) {
+        const title = note["hulunote-notes/title"]
+        const id = note["hulunote-notes/id"]
+        const rootNavId = note["hulunote-notes/root-nav-id"]
+        lines.push(`- ${title}`)
+        lines.push(`  ID: ${id}`)
+        lines.push(`  Root Nav ID: ${rootNavId}`)
+      }
+      return textResult(lines.join("\n"))
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_move_outline_node",
+    label: "Hulunote Move Outline Node",
+    description:
+      "Move an outline node to a new parent or reorder it among siblings. Use this for indent, outdent, or reordering operations.",
+    parameters: MoveOutlineNodeParamsSchema,
+    async execute(_id: string, params: MoveOutlineNodeParams) {
+      const client = createClient(pluginConfig)
+      await client.updateNavParent(params.noteId, params.navId, params.newParentId, params.newOrder)
+      return textResult(
+        [
+          `Outline node moved.`,
+          `Nav ID: ${params.navId}`,
+          `New parent: ${params.newParentId}`,
+          `New order: ${params.newOrder}`,
+        ].join("\n"),
+      )
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_import_notes",
+    label: "Hulunote Import Notes",
+    description:
+      'Import notes from JSON data into a database. The JSON should follow the Hulunote import format: {"note":{"hulunote-notes/title":"Title"},"navs":[{"content":"text","parid":"root-nav-id","same-deep-order":1}]}',
+    parameters: ImportNotesParamsSchema,
+    async execute(_id: string, params: ImportNotesParams) {
+      const client = createClient(pluginConfig)
+      const databaseId = resolveDatabaseId(pluginConfig, params.databaseId)
+      const filename = params.filename ?? "import.json"
+      const result = await client.importNotes(databaseId, params.jsonContent, filename)
+      const lines = [
+        `Import complete.`,
+        `Imported: ${result["imported-count"]} note(s)`,
+        `Errors: ${result["error-count"]}`,
+      ]
+      if (result.imported.length > 0) {
+        lines.push("", "Imported notes:")
+        for (const item of result.imported) {
+          lines.push(`- ${item.title} (ID: ${item["note-id"]}, navs: ${item["nav-count"]})`)
+        }
+      }
+      if (result.errors.length > 0) {
+        lines.push("", "Errors:")
+        for (const err of result.errors) {
+          lines.push(`- ${err.file}: ${err.error}`)
+        }
+      }
+      return textResult(lines.join("\n"))
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_sync_navs",
+    label: "Hulunote Sync Navs",
+    description:
+      "Get outline nodes with pagination, optionally filtered by a sync timestamp. Useful for incremental sync or bulk inspection of outline data.",
+    parameters: SyncNavsParamsSchema,
+    async execute(_id: string, params: SyncNavsParams) {
+      const client = createClient(pluginConfig)
+      const databaseId = resolveDatabaseId(pluginConfig, params.databaseId)
+      const result = await client.getAllNavsByPage(databaseId, {
+        backendTs: params.backendTs,
+        page: params.page,
+        size: params.size,
+      })
+      const lines = [
+        `Navs (page ${params.page ?? 1} of ${result.allPages}):`,
+        `Backend timestamp: ${result.backendTs}`,
+        `Count: ${result.navs.length}`,
+        "",
+      ]
+      for (const nav of result.navs) {
+        lines.push(`- [${nav.id}] ${truncate(nav.content, 60)} (parent: ${nav.parid})`)
+      }
+      return textResult(lines.join("\n"))
+    },
+  })
+
+  api.registerTool({
+    name: "hulunote_get_all_navs",
+    label: "Hulunote Get All Navs",
+    description:
+      "Get all outline nodes in a database, optionally filtered by a sync timestamp. Returns all navs without pagination.",
+    parameters: GetAllNavsParamsSchema,
+    async execute(_id: string, params: GetAllNavsParams) {
+      const client = createClient(pluginConfig)
+      const databaseId = resolveDatabaseId(pluginConfig, params.databaseId)
+      const result = await client.getAllNavs(databaseId, params.backendTs)
+      const lines = [
+        `All navs in database:`,
+        `Backend timestamp: ${result.backendTs}`,
+        `Total count: ${result.navs.length}`,
+        "",
+      ]
+      for (const nav of result.navs) {
+        lines.push(`- [${nav.id}] ${truncate(nav.content, 60)} (parent: ${nav.parid})`)
+      }
+      return textResult(lines.join("\n"))
     },
   })
 }

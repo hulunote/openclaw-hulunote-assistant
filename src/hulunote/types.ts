@@ -92,6 +92,23 @@ export type SuccessResponse = {
   message?: string
 }
 
+/** Import notes response */
+export type ImportResponse = {
+  success: boolean
+  "imported-count": number
+  "error-count": number
+  imported: Array<{
+    file: string
+    "note-id": string
+    title: string
+    "nav-count": number
+  }>
+  errors: Array<{
+    file: string
+    error: string
+  }>
+}
+
 /** Flattened outline node for display */
 export type OutlineNode = {
   id: string

@@ -2,6 +2,7 @@ import type {
   CreateNavResponse,
   DatabaseInfo,
   DatabaseListResponse,
+  ImportResponse,
   NavInfo,
   NavListResponse,
   NoteInfo,
@@ -190,5 +191,81 @@ export class HulunoteClient {
       id: navId,
       "is-delete": true,
     })
+  }
+
+  /** Update database properties */
+  async updateDatabase(
+    databaseId: string,
+    options: { name?: string; isPublic?: boolean; isDefault?: boolean },
+  ): Promise<void> {
+    await this.post<SuccessResponse>("/hulunote/update-database", {
+      "database-id": databaseId,
+      ...(options.name != null ? { "db-name": options.name } : {}),
+      ...(options.isPublic != null ? { "is-public": options.isPublic } : {}),
+      ...(options.isDefault != null ? { "is-default": options.isDefault } : {}),
+    })
+  }
+
+  /** Get all navs paginated (for sync) */
+  async getAllNavsByPage(
+    databaseId: string,
+    options?: { backendTs?: number; page?: number; size?: number },
+  ): Promise<{ navs: NavInfo[]; allPages: number; backendTs: number }> {
+    const response = await this.post<NavListResponse & { "all-pages"?: number }>(
+      "/hulunote/get-all-nav-by-page",
+      {
+        "database-id": databaseId,
+        ...(options?.backendTs != null ? { "backend-ts": options.backendTs } : {}),
+        ...(options?.page != null ? { page: options.page } : {}),
+        ...(options?.size != null ? { size: options.size } : {}),
+      },
+    )
+    return {
+      navs: response["nav-list"] ?? [],
+      allPages: response["all-pages"] ?? 1,
+      backendTs: response["backend-ts"] ?? 0,
+    }
+  }
+
+  /** Get all navs in a database */
+  async getAllNavs(
+    databaseId: string,
+    backendTs?: number,
+  ): Promise<{ navs: NavInfo[]; backendTs: number }> {
+    const response = await this.post<NavListResponse>("/hulunote/get-all-navs", {
+      "database-id": databaseId,
+      ...(backendTs != null ? { "backend-ts": backendTs } : {}),
+    })
+    return {
+      navs: response["nav-list"] ?? [],
+      backendTs: response["backend-ts"] ?? 0,
+    }
+  }
+
+  /** Import notes from JSON content */
+  async importNotes(databaseId: string, jsonContent: string, filename: string): Promise<ImportResponse> {
+    const url = `${this.serverUrl}/hulunote/import-notes`
+    const formData = new FormData()
+    formData.append("database-id", databaseId)
+    const blob = new Blob([jsonContent], { type: "application/json" })
+    formData.append("file", blob, filename)
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const status = response.status
+      if (status === 401) throw new Error("Authentication failed: invalid or expired token.")
+      if (status === 403) throw new Error("Access denied.")
+      if (status === 404) throw new Error("Resource not found.")
+      throw new Error(`Hulunote API error (${status}): ${await response.text()}`)
+    }
+
+    return (await response.json()) as ImportResponse
   }
 }
