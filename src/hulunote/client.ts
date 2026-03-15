@@ -31,7 +31,7 @@ export class HulunoteClient {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.token}`,
+        "x-functor-api-token": this.token,
       },
       body: JSON.stringify(body),
     })
@@ -253,7 +253,7 @@ export class HulunoteClient {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.token}`,
+        "x-functor-api-token": this.token,
       },
       body: formData,
     })

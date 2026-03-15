@@ -14,6 +14,10 @@
         "type": "string",
         "description": "Hulunote server URL, e.g. http://localhost:6689"
       },
+      "token": {
+        "type": "string",
+        "description": "Hulunote authentication token (JWT). If set, takes priority over tokenEnv."
+      },
       "tokenEnv": {
         "type": "string",
         "description": "Environment variable name that contains the Hulunote authentication token."

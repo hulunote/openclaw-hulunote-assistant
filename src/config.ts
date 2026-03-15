@@ -6,12 +6,14 @@ const BUILTIN_CONFIG = {
 
 type RawPluginConfig = {
   serverUrl?: string
+  token?: string
   tokenEnv?: string
   defaultDatabaseId?: string
 } & Record<string, unknown>
 
 export type PluginConfig = {
   serverUrl: string
+  token?: string
   tokenEnv?: string
   defaultDatabaseId?: string
 }
@@ -22,13 +24,15 @@ export const toPluginConfig = (api: Pick<OpenClawPluginApi, "pluginConfig">): Pl
 
   return {
     serverUrl: rawConfig.serverUrl ?? BUILTIN_CONFIG.serverUrl,
+    token: rawConfig.token,
     tokenEnv: rawConfig.tokenEnv,
     defaultDatabaseId: rawConfig.defaultDatabaseId,
   }
 }
 
-/** Resolves the authentication token from the configured environment variable. */
+/** Resolves the authentication token from config or environment variable. */
 export const resolveToken = (config: PluginConfig): string | null => {
+  if (config.token) return config.token
   if (!config.tokenEnv) return null
   return process.env[config.tokenEnv] ?? null
 }
